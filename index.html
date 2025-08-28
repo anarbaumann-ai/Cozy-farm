@@ -84,7 +84,7 @@ if (!window.Phaser) {
 
   function create(){
     map = this.make.tilemap({ key:'map' });
-    const tiles = map.addTilesetImage('tiles', 'tiles', map.tileWidth, map.tileHeight, 0, 0);
+    const tiles = map.addTilesetImage(null, 'tiles', map.tileWidth, map.tileHeight, 0, 0);
     map.createLayer('ground', tiles, 0, 0);
     fields = map.createLayer('fields', tiles, 0, 0);
     map.createLayer('house', tiles, 0, 0);
