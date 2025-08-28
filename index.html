@@ -85,40 +85,30 @@ if (!window.Phaser) {
   function create(){
     
     map = this.make.tilemap({ key: 'map' });
-
-    // Falls der Tilemap keine Tilesets zugeordnet wurden, sofort abbrechen
+    
+    // ► Tileset robust aus der Map lesen
     if (!map.tilesets || map.tilesets.length === 0) {
-      promptEl.textContent = 'Fehler: In map.json ist kein Tileset eingetragen.';
+      document.getElementById('prompt').textContent =
+        'Fehler: In map.json ist kein Tileset eingetragen.';
       return;
     }
-    // Wenn ein Tileset vorhanden ist, dessen Name anzeigen
-    promptEl.textContent = 'Tileset: ' + (map.tilesets[0].name || 'unbenannt');
-    
-    // Hinweis: getHoverObject() benötigt einen bereits existierenden Spieler.
-    // Der Aufruf wurde entfernt, da der Spieler erst weiter unten initialisiert wird.
-    // Eine passende Hinweis-Logik wird später nach Spielerstarterstellung nachgerüstet.
-    // const o = getHoverObject();
-    // promptEl.textContent = o ? (o.type==='field' ? 'Feld – [●] säen/ernten' : (o.name||'Objekt')+' – [E] interagieren') : '';
-
-    // ► Tileset robust aus der Map lesen
-    const ts = map.tilesets[0]; // erstes Tileset aus map.json (existiert garantiert dank obiger Prüfung)
-    // Ein robusten Tileset‑Namen ermitteln: Falls ts.name fehlt, auf 'tiles' zurückgreifen.
-    const tileSetName = ts.name || 'tiles';
+    const ts = map.tilesets[0]; // erstes Tileset aus map.json
+    // ts.name ist jetzt garantiert definiert
     const tiles = map.addTilesetImage(
-      tileSetName,          // z.B. "tiles"; Phaser verlangt einen gültigen String
-      'tiles',              // Bild‑Key aus this.load.image('tiles', 'tiles.png')
+      ts.name,          // z.B. "tiles"
+      'tiles',          // Bild-Key aus this.load.image('tiles', 'tiles.png')
       ts.tileWidth || map.tileWidth,
       ts.tileHeight || map.tileHeight,
       ts.margin || 0,
       ts.spacing || 0
     );
 
-// Layer zeichnen
-map.createLayer('ground', tiles, 0, 0);
-fields = map.createLayer('fields', tiles, 0, 0);
-map.createLayer('house', tiles, 0, 0);
-collision = map.createLayer('collision', tiles, 0, 0);
-collision.setCollisionBetween(1, 999);
+    // Layer zeichnen
+    map.createLayer('ground', tiles, 0, 0);
+    fields = map.createLayer('fields', tiles, 0, 0);
+    map.createLayer('house', tiles, 0, 0);
+    collision = map.createLayer('collision', tiles, 0, 0);
+    collision.setCollisionBetween(1, 999);
 
 
     const objs = map.getObjectLayer('objects').objects;
@@ -207,8 +197,9 @@ collision.setCollisionBetween(1, 999);
     timeOfDay += this.game.loop.delta/1000 * 0.25;
     if (timeOfDay>=24){ day++; timeOfDay=8.0; }
     updateHUD();
-    
-  
+
+    const o = getHoverObject();
+    promptEl.textContent = o ? (o.type==='field' ? 'Feld – [●] säen/ernten' : (o.name||'Objekt')+' – [E] interagieren') : '';
   }
 
   function updateHUD(){
