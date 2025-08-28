@@ -83,13 +83,36 @@ if (!window.Phaser) {
   }
 
   function create(){
-    map = this.make.tilemap({ key:'map' });
-    const tiles = map.addTilesetImage(null, 'tiles', map.tileWidth, map.tileHeight, 0, 0);
-    map.createLayer('ground', tiles, 0, 0);
-    fields = map.createLayer('fields', tiles, 0, 0);
-    map.createLayer('house', tiles, 0, 0);
-    collision = map.createLayer('collision', tiles, 0, 0);
-    collision.setCollisionBetween(1, 999);
+    
+    document.getElementById('prompt').textContent =
+  'Tileset: ' + (map.tilesets[0] && map.tilesets[0].name);
+    
+    map = this.make.tilemap({ key: 'map' });
+
+// ► Tileset robust aus der Map lesen
+if (!map.tilesets || map.tilesets.length === 0) {
+  document.getElementById('prompt').textContent =
+    'Fehler: In map.json ist kein Tileset eingetragen.';
+  return;
+}
+const ts = map.tilesets[0]; // erstes Tileset aus map.json
+// ts.name ist jetzt garantiert definiert
+const tiles = map.addTilesetImage(
+  ts.name,          // z.B. "tiles"
+  'tiles',          // Bild-Key aus this.load.image('tiles', 'tiles.png')
+  ts.tileWidth || map.tileWidth,
+  ts.tileHeight || map.tileHeight,
+  ts.margin || 0,
+  ts.spacing || 0
+);
+
+// Layer zeichnen
+map.createLayer('ground', tiles, 0, 0);
+fields = map.createLayer('fields', tiles, 0, 0);
+map.createLayer('house', tiles, 0, 0);
+collision = map.createLayer('collision', tiles, 0, 0);
+collision.setCollisionBetween(1, 999);
+
 
     const objs = map.getObjectLayer('objects').objects;
     const spawn = objs.find(o=>o.type==='spawn') || {x:100,y:100};
