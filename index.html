@@ -1,1 +1,74 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover"/>
+<meta name="theme-color" content="#1b2b1b">
+<link rel="manifest" href="cozy_farm_manifest.webmanifest">
+<title>Cozy Farm – Mobile Prototype</title>
+<style>
+  :root { --bg:#132014; --panel:#1b281b; --txt:#e9ffe9; }
+  html,body { height:100%; margin:0; background:var(--bg); color:var(--txt); font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  #game { width:100%; height:100%; display:block; image-rendering: pixelated; image-rendering: crisp-edges; touch-action:none; }
+  #hudBar { position:fixed; left:12px; right:12px; top:12px; display:flex; gap:8px; flex-wrap:wrap; z-index:20; }
+  .chip { background:rgba(30,45,30,.8); padding:6px 8px; border-radius:10px; font-size:12px; }
+  #prompt { position:fixed; bottom:calc(88px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); background:rgba(0,0,0,.45); padding:8px 12px; border-radius:12px; z-index:10; }
+  /* Controls */
+  #controls { position:fixed; left:0; right:0; bottom:0; height:180px; padding:16px env(safe-area-inset-right) calc(16px + env(safe-area-inset-bottom)) env(safe-area-inset-left);
+              display:flex; justify-content:space-between; align-items:flex-end; pointer-events:none; z-index:30; }
+  #joy { width:140px; height:140px; border-radius:50%; background:rgba(40,60,40,.45); border:1px solid #2d402d;
+          position:relative; margin:0 0 0 8px; pointer-events:auto; }
+  #stick { position:absolute; left:50%; top:50%; width:64px; height:64px; margin:-32px; border-radius:50%;
+            background:rgba(90,140,90,.85); border:2px solid #1d2d1d; }
+  #btns { display:flex; gap:12px; pointer-events:auto; margin:0 8px 0 0; }
+  .btn { width:72px; height:72px; border-radius:50%; background:rgba(70,100,70,.9); border:2px solid #233523;
+          display:flex; align-items:center; justify-content:center; font-weight:700; font-size:18px; }
+  .btn.small { width:60px; height:60px; font-size:16px; opacity:.9; }
+  #toastBox { position:fixed; right:12px; top:12px; z-index:40; }
+  .toast { background:rgba(40,50,40,.9); padding:8px 10px; margin:0 0 8px 0; border-left:4px solid #9fe39f; border-radius:8px; }
+</style>
+</head>
+<body>
+<canvas id="game" aria-label="Cozy Farm Spielfläche"></canvas>
+<div id="hudBar">
+  <div class="chip" id="cDay"></div>
+  <div class="chip" id="cTime"></div>
+  <div class="chip" id="cSta"></div>
+  <div class="chip" id="cInv"></div>
+</div>
+<div id="prompt"></div>
+<div id="toastBox"></div>
+
+<!-- Touch controls -->
+<div id="controls">
+  <div id="joy"><div id="stick"></div></div>
+  <div id="btns">
+    <div class="btn" id="bInteract" title="Interagieren">E</div>
+    <div class="btn" id="bUse" title="Säen/Ernten">●</div>
+    <div class="btn small" id="bSleep" title="Schlafen">⏭</div>
+  </div>
+</div>
+
+<script>
+// ---- Platzhalter: Dein Pixel-Farm-Bild als Data-URL
+// Falls du die Base64-Version nicht hast, kannst du auch einfach ein <img> laden.
+const farmImg = new Image();
+farmImg.src = "https://i.ibb.co/vd7VRhT/farm-base.png"; // Beispiel-Upload
+
+// ---- Minimal-Game-Loop
+const canvas=document.getElementById('game'); const ctx=canvas.getContext('2d');
+let W,H,dpr=1; function resize(){ dpr=window.devicePixelRatio||1; W=canvas.clientWidth; H=canvas.clientHeight; canvas.width=W*dpr; canvas.height=H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); } resize(); window.addEventListener('resize', resize);
+
+let player={x:380,y:420,r:8};
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  if(farmImg.complete) ctx.drawImage(farmImg,0,0,768,768,0,0,W,H);
+  ctx.fillStyle="#2b3f71"; ctx.fillRect(player.x-6,player.y-6,12,12);
+}
+function loop(){ draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+</body>
+</html>
+
 
