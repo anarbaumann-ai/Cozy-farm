@@ -84,10 +84,13 @@ if (!window.Phaser) {
 
   function create(){
     
+    map = this.make.tilemap({ key: 'map' });
+
     document.getElementById('prompt').textContent =
   'Tileset: ' + (map.tilesets[0] && map.tilesets[0].name);
     
-    map = this.make.tilemap({ key: 'map' });
+    const o = getHoverObject();
+    promptEl.textContent = o ? (o.type==='field' ? 'Feld – [●] säen/ernten' : (o.name||'Objekt')+' – [E] interagieren') : '';
 
 // ► Tileset robust aus der Map lesen
 if (!map.tilesets || map.tilesets.length === 0) {
@@ -201,15 +204,7 @@ collision.setCollisionBetween(1, 999);
     if (timeOfDay>=24){ day++; timeOfDay=8.0; }
     updateHUD();
     
-  function create(){
-    
-    map = this.make.tilemap({ key: 'map' });
-
-    document.getElementById('prompt').textContent =
-  'Tileset: ' + (map.tilesets[0] && map.tilesets[0].name);
-    
-    const o = getHoverObject();
-    promptEl.textContent = o ? (o.type==='field' ? 'Feld – [●] säen/ernten' : (o.name||'Objekt')+' – [E] interagieren') : '';
+  
   }
 
   function updateHUD(){
