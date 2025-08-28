@@ -5,41 +5,34 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover"/>
 <meta name="theme-color" content="#1b2b1b">
 <link rel="manifest" href="cozy_farm_manifest.webmanifest">
-<title>Cozy Farm – Mobile Prototype</title>
+<title>Cozy Farm – Mobile</title>
 <style>
-  :root { --bg:#132014; --panel:#1b281b; --txt:#e9ffe9; }
+  :root { --bg:#132014; --txt:#e9ffe9; }
   html,body { height:100%; margin:0; background:var(--bg); color:var(--txt); font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
   #game { width:100%; height:100%; display:block; image-rendering: pixelated; image-rendering: crisp-edges; touch-action:none; }
-  #hudBar { position:fixed; left:12px; right:12px; top:12px; display:flex; gap:8px; flex-wrap:wrap; z-index:20; }
+  #hud { position:fixed; left:12px; right:12px; top:12px; display:flex; gap:8px; flex-wrap:wrap; z-index:20; }
   .chip { background:rgba(30,45,30,.8); padding:6px 8px; border-radius:10px; font-size:12px; }
   #prompt { position:fixed; bottom:calc(88px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); background:rgba(0,0,0,.45); padding:8px 12px; border-radius:12px; z-index:10; }
-  /* Controls */
   #controls { position:fixed; left:0; right:0; bottom:0; height:180px; padding:16px env(safe-area-inset-right) calc(16px + env(safe-area-inset-bottom)) env(safe-area-inset-left);
               display:flex; justify-content:space-between; align-items:flex-end; pointer-events:none; z-index:30; }
-  #joy { width:140px; height:140px; border-radius:50%; background:rgba(40,60,40,.45); border:1px solid #2d402d;
-          position:relative; margin:0 0 0 8px; pointer-events:auto; }
-  #stick { position:absolute; left:50%; top:50%; width:64px; height:64px; margin:-32px; border-radius:50%;
-            background:rgba(90,140,90,.85); border:2px solid #1d2d1d; }
-  #btns { display:flex; gap:12px; pointer-events:auto; margin:0 8px 0 0; }
-  .btn { width:72px; height:72px; border-radius:50%; background:rgba(70,100,70,.9); border:2px solid #233523;
-          display:flex; align-items:center; justify-content:center; font-weight:700; font-size:18px; }
+  #joy { width:140px; height:140px; border-radius:50%; background:rgba(40,60,40,.45); border:1px solid #2d402d; position:relative; margin-left:8px; pointer-events:auto; }
+  #stick { position:absolute; left:50%; top:50%; width:64px; height:64px; margin:-32px; border-radius:50%; background:rgba(90,140,90,.85); border:2px solid #1d2d1d; }
+  #btns { display:flex; gap:12px; pointer-events:auto; margin-right:8px; }
+  .btn { width:72px; height:72px; border-radius:50%; background:rgba(70,100,70,.9); border:2px solid #233523; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:18px; }
   .btn.small { width:60px; height:60px; font-size:16px; opacity:.9; }
-  #toastBox { position:fixed; right:12px; top:12px; z-index:40; }
-  .toast { background:rgba(40,50,40,.9); padding:8px 10px; margin:0 0 8px 0; border-left:4px solid #9fe39f; border-radius:8px; }
 </style>
 </head>
 <body>
 <canvas id="game" aria-label="Cozy Farm Spielfläche"></canvas>
-<div id="hudBar">
+
+<div id="hud">
   <div class="chip" id="cDay"></div>
   <div class="chip" id="cTime"></div>
   <div class="chip" id="cSta"></div>
   <div class="chip" id="cInv"></div>
 </div>
 <div id="prompt"></div>
-<div id="toastBox"></div>
 
-<!-- Touch controls -->
 <div id="controls">
   <div id="joy"><div id="stick"></div></div>
   <div id="btns">
@@ -50,25 +43,120 @@
 </div>
 
 <script>
-// ---- Platzhalter: Dein Pixel-Farm-Bild als Data-URL
-// Falls du die Base64-Version nicht hast, kannst du auch einfach ein <img> laden.
-const farmImg = new Image();
-farmImg.src = "https://i.ibb.co/vd7VRhT/farm-base.png"; // Beispiel-Upload
+// Service Worker (optional offline)
+if ('serviceWorker' in navigator) { window.addEventListener('load', ()=>navigator.serviceWorker.register('./cozy_farm_sw.js').catch(()=>{})); }
 
-// ---- Minimal-Game-Loop
-const canvas=document.getElementById('game'); const ctx=canvas.getContext('2d');
-let W,H,dpr=1; function resize(){ dpr=window.devicePixelRatio||1; W=canvas.clientWidth; H=canvas.clientHeight; canvas.width=W*dpr; canvas.height=H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); } resize(); window.addEventListener('resize', resize);
+// --- Setup
+const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
+let W,H,dpr=1; function resize(){ dpr=Math.min(3, Math.max(1, window.devicePixelRatio||1)); W=canvas.clientWidth; H=canvas.clientHeight; canvas.width=W*dpr; canvas.height=H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); }
+window.addEventListener('resize', resize); resize();
 
-let player={x:380,y:420,r:8};
+const img = new Image(); img.src = './farm.png'; // <— DEIN BILD IM REPO
+const world = { w:768, h:768 };
+const cam = { x: world.w/2-160, y: world.h/2-180, z: 2.8 };
+const player = { x: world.w/2, y: world.h/2+70, r:7, speed:110, stamina:100, maxStamina:100, seeds:6, wood:3, coins:0 };
+
+// einfache Kollisionen (Haus, Brunnen, Stall, Tisch, Bäume)
+const C=[]; const rect=(x,y,w,h)=>C.push({x,y,w,h});
+rect(300,140,170,150); rect(96,268,96,100); rect(568,254,160,150); rect(540,520,180,100);
+rect(20,20,140,140); rect(612,20,140,140); rect(20,612,180,140); rect(620,600,140,160);
+
+// Felder (6 Plots, 3x2)
+const plots=[]; const plotSize=96; const originX=132, originY=380;
+for(let r=0;r<2;r++) for(let c=0;c<3;c++) plots.push({x:originX+c*(plotSize+20), y:originY+r*(plotSize+20), crops:new Array(9).fill(null)});
+const zones=[{id:'well',x:96,y:268,w:96,h:100,name:'Brunnen',tip:'Wasser schöpfen (Stamina +30)'},{id:'table',x:540,y:520,w:180,h:100,name:'Werkbank',tip:'Werkbank öffnen'},{id:'hut',x:300,y:140,w:170,h:150,name:'Hütte',tip:'Schlafen / Tag skippen'},{id:'pen',x:568,y:254,w:160,h:150,name:'Hühner',tip:'Streicheln'}];
+
+const GROW_TIME=18, MAX_STAGE=3;
+function plantAt(pi,ci){ if(!plots[pi].crops[ci] && player.seeds>0){ plots[pi].crops[ci]={stage:0,t:0}; player.seeds--; toast('Gesät.'); } }
+function harvestAt(pi,ci){ const c=plots[pi].crops[ci]; if(c && c.stage>=MAX_STAGE){ plots[pi].crops[ci]=null; player.coins+=2; player.seeds+=1; toast('Geerntet.'); } }
+
+// Zeit
+let day=1, timeOfDay=8.0; const nextDay=()=>{ day++; timeOfDay=8; player.stamina=player.maxStamina; toast('Neuer Tag '+day); };
+const updateTime=(dt)=>{ timeOfDay+=dt*0.35; if(timeOfDay>=24) nextDay(); };
+
+// Joystick
+const joy=document.getElementById('joy'), stick=document.getElementById('stick');
+let joyActive=false, joyBase={x:0,y:0}, joyVec={x:0,y:0};
+function joyStart(x,y){ joyActive=true; const r=joy.getBoundingClientRect(); joyBase.x=r.left+r.width/2; joyBase.y=r.top+r.height/2; joyMove(x,y); }
+function joyMove(x,y){ if(!joyActive) return; const dx=x-joyBase.x, dy=y-joyBase.y; const max=50; const len=Math.hypot(dx,dy); const s=len>max?max/len:1; const sx=dx*s, sy=dy*s; stick.style.transform='translate('+sx+'px,'+sy+'px)'; joyVec.x=(dx/max); joyVec.y=(dy/max); const m=Math.hypot(joyVec.x,joyVec.y); if(m>1){ joyVec.x/=m; joyVec.y/=m; } }
+function joyEnd(){ joyActive=false; stick.style.transform='translate(0,0)'; joyVec.x=joyVec.y=0; }
+joy.addEventListener('touchstart', e=>{const t=e.changedTouches[0]; joyStart(t.clientX,t.clientY); e.preventDefault();},{passive:false});
+joy.addEventListener('touchmove', e=>{const t=e.changedTouches[0]; joyMove(t.clientX,t.clientY); e.preventDefault();},{passive:false});
+joy.addEventListener('touchend', joyEnd);
+joy.addEventListener('mousedown', e=> joyStart(e.clientX,e.clientY));
+window.addEventListener('mousemove', e=> joyMove(e.clientX,e.clientY));
+window.addEventListener('mouseup', joyEnd);
+
+// Buttons
+document.getElementById('bInteract').onclick=()=>doInteract();
+document.getElementById('bUse').onclick=()=>doUse();
+document.getElementById('bSleep').onclick=()=>nextDay();
+
+function doUse(){ const z=getHoverZone(); if(!z || z.id!=='plot') return; interactPlot(z.p); }
+function doInteract(){ const z=getHoverZone(); if(!z) return;
+  if(z.id==='well') player.stamina=Math.min(player.maxStamina, player.stamina+30);
+  if(z.id==='table') toast('Werkbank (Demo)'); if(z.id==='hut') nextDay(); if(z.id==='pen') toast('🐔 gack gack!');
+}
+function interactPlot(pIdx){ const plot=plots[pIdx]; const cell=plotSize/3; let best=-1, bestD=1e9;
+  for(let i=0;i<9;i++){ const cx=plot.x+(i%3+0.5)*cell; const cy=plot.y+(Math.floor(i/3)+0.5)*cell; const d=(player.x-cx)**2+(player.y-cy)**2; if(d<bestD){bestD=d; best=i;} }
+  const c=plot.crops[best]; if(!c) plantAt(pIdx,best); else if(c.stage>=MAX_STAGE) harvestAt(pIdx,best); else toast('Noch nicht reif…');
+}
+function getHoverZone(){ const r=player.r; const circle={x:player.x,y:player.y,r};
+  function overlaps(rect){ const cx=Math.max(rect.x, Math.min(circle.x, rect.x+rect.w)); const cy=Math.max(rect.y, Math.min(circle.y, rect.y+rect.h)); const dx=circle.x-cx, dy=circle.y-cy; return dx*dx+dy*dy<=r*r; }
+  for(const z of zones) if(overlaps(z)) return z;
+  for(let p=0;p<plots.length;p++){ const z={x:plots[p].x,y:plots[p].y,w:plotSize,h:plotSize}; if(overlaps(z)) return Object.assign({id:'plot',p}, z); }
+  return null;
+}
+
+// Toasts + HUD
+function toast(msg){ let d=document.createElement('div'); d.style.cssText='position:fixed;right:12px;top:12px;background:rgba(40,50,40,.9);padding:8px 10px;border-left:4px solid #9fe39f;border-radius:8px;z-index:40'; d.textContent=msg; document.body.appendChild(d); setTimeout(()=>d.remove(),2200); }
+const HUD = { day:document.getElementById('cDay'), time:document.getElementById('cTime'), sta:document.getElementById('cSta'), inv:document.getElementById('cInv'), prompt:document.getElementById('prompt') };
+
+// Loop
+let last=performance.now();
+function update(dt){
+  updateTime(dt);
+  let ax=joyVec.x, ay=joyVec.y; const m=Math.hypot(ax,ay)||1; ax/=m; ay/=m;
+  let nx=player.x + ax*player.speed*dt, ny=player.y + ay*player.speed*dt;
+  const r=player.r;
+  function resolve(px,py,box){ const cx=Math.max(box.x, Math.min(px, box.x+box.w)); const cy=Math.max(box.y, Math.min(py, box.y+box.h)); const dx=px-cx, dy=py-cy; if(Math.abs(dx)<=r && Math.abs(dy)<=r){ if(Math.abs(dx)>Math.abs(dy)) px=cx+Math.sign(dx)*(r+0.01); else py=cy+Math.sign(dy)*(r+0.01); } return [px,py]; }
+  C.forEach(b=>{ [nx,ny]=resolve(nx,ny,b); });
+  nx=Math.max(r, Math.min(world.w-r,nx)); ny=Math.max(r, Math.min(world.h-r,ny));
+  player.x=nx; player.y=ny;
+
+  for(const p of plots) for(let i=0;i<p.crops.length;i++){ const c=p.crops[i]; if(!c) continue; c.t+=dt; if(c.t>=GROW_TIME && c.stage<MAX_STAGE){ c.t=0; c.stage++; } }
+
+  cam.x = player.x - W/(2*cam.z); cam.y = player.y - H/(2*cam.z);
+  const h=getHoverZone(); HUD.prompt.textContent = h ? (h.name+' – '+(h.tip||'')) : '';
+}
 function draw(){
   ctx.clearRect(0,0,W,H);
-  if(farmImg.complete) ctx.drawImage(farmImg,0,0,768,768,0,0,W,H);
-  ctx.fillStyle="#2b3f71"; ctx.fillRect(player.x-6,player.y-6,12,12);
+  ctx.save(); ctx.translate(-cam.x*cam.z, -cam.y*cam.z); ctx.scale(cam.z,cam.z); ctx.imageSmoothingEnabled=false;
+  if(img.complete) ctx.drawImage(img,0,0); // Welt
+  // Felder/Crops
+  const cell=plotSize/3;
+  for(const p of plots){ ctx.strokeStyle='#00000055'; ctx.lineWidth=1; ctx.strokeRect(p.x,p.y,plotSize,plotSize);
+    for(let i=0;i<9;i++){ const c=p.crops[i]; if(!c) continue; const cx=p.x+(i%3)*cell, cy=p.y+Math.floor(i/3)*cell;
+      if(c.stage===0){ ctx.fillStyle='#4aa34a'; ctx.fillRect(cx+14, cy+14, 6, 6); }
+      if(c.stage===1){ ctx.fillStyle='#3b8c3b'; ctx.fillRect(cx+12, cy+10, 10, 10); }
+      if(c.stage===2){ ctx.fillStyle='#2f6e2f'; ctx.fillRect(cx+10, cy+8, 14, 14); }
+      if(c.stage>=3){ ctx.fillStyle='#a37b2a'; ctx.fillRect(cx+8, cy+6, 18, 18); }
+  }}
+  // Spieler
+  const px=player.x, py=player.y, bob=Math.sin(performance.now()/220)*1.2;
+  ctx.fillStyle='#2b3f71'; ctx.fillRect(px-4, py-6+bob, 8, 9);
+  ctx.fillStyle='#f6d7b0'; ctx.fillRect(px-4, py-14+bob, 8, 8);
+  ctx.fillStyle='#7b3b1d'; ctx.fillRect(px-4, py-14+bob, 8, 3);
+  ctx.strokeStyle='#000'; ctx.lineWidth=1/cam.z; ctx.strokeRect(px-4, py-14+bob, 8, 17);
+  ctx.restore();
+
+  HUD.day.textContent='Tag '+day;
+  HUD.time.textContent='Zeit '+timeOfDay.toFixed(1)+'h';
+  HUD.sta.textContent='Stamina '+Math.round(player.stamina);
+  HUD.inv.textContent='Samen '+player.seeds+' • Holz '+player.wood+' • Münzen '+player.coins;
 }
-function loop(){ draw(); requestAnimationFrame(loop); }
-loop();
+function frame(t){ const dt=Math.min(0.05,(t-last)/1000); last=t; update(dt); draw(); requestAnimationFrame(frame); }
+img.onload = ()=>{ requestAnimationFrame(frame); };
 </script>
 </body>
 </html>
-
-
