@@ -200,7 +200,14 @@ collision.setCollisionBetween(1, 999);
     timeOfDay += this.game.loop.delta/1000 * 0.25;
     if (timeOfDay>=24){ day++; timeOfDay=8.0; }
     updateHUD();
+    
+  function create(){
+    
+    map = this.make.tilemap({ key: 'map' });
 
+    document.getElementById('prompt').textContent =
+  'Tileset: ' + (map.tilesets[0] && map.tilesets[0].name);
+    
     const o = getHoverObject();
     promptEl.textContent = o ? (o.type==='field' ? 'Feld – [●] säen/ernten' : (o.name||'Objekt')+' – [E] interagieren') : '';
   }
