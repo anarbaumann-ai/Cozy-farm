@@ -1,0 +1,9 @@
+{
+  "name": "Cozy Farm – Mobile Prototype",
+  "short_name": "Cozy Farm",
+  "display": "standalone",
+  "start_url": "./cozy_farm_mobile.html",
+  "background_color": "#132014",
+  "theme_color": "#132014",
+  "icons": []
+}
